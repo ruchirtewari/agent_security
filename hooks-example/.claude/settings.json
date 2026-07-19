@@ -1,0 +1,36 @@
+{
+  "_comment": "Claude Code project settings — hooks fire before/after every matching tool call.",
+  "_refs": {
+    "mcp_server":  "../.mcp.json",
+    "pre_hook":    "hooks/pre_process_refund.py",
+    "post_hook":   "hooks/post_process_refund.py",
+    "tool_code":   "../mcp_tools/refund_server.py",
+    "readme":      "../README.md"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "_comment": "Fires BEFORE process_refund executes. Exit 2 blocks the call.",
+        "matcher": "mcp__refund-tools__process_refund",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre_process_refund.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "_comment": "Fires AFTER process_refund returns. Stdout replaces the tool result seen by Claude.",
+        "matcher": "mcp__refund-tools__process_refund",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post_process_refund.py"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+[
+  {
+    "id": "TC-01",
+    "description": "success — standard refund below threshold",
+    "customer_id": "CUST-001",
+    "order_id": "ORD-1001",
+    "amount": 150.00,
+    "reason": "Product arrived damaged — packaging crushed",
+    "expected": "success"
+  },
+  {
+    "id": "TC-02",
+    "description": "success — edge case $499.99 (one cent under $500 limit)",
+    "customer_id": "CUST-002",
+    "order_id": "ORD-1002",
+    "amount": 499.99,
+    "reason": "Wrong item shipped, customer kept original",
+    "expected": "success"
+  },
+  {
+    "id": "TC-03",
+    "description": "pre-hook block — $500.01 (one cent over threshold)",
+    "customer_id": "CUST-003",
+    "order_id": "ORD-1003",
+    "amount": 500.01,
+    "reason": "Full order return, all items unopened",
+    "expected": "pre_hook_blocked"
+  },
+  {
+    "id": "TC-04",
+    "description": "pre-hook block — $1200 (subscription cancellation)",
+    "customer_id": "CUST-004",
+    "order_id": "ORD-1004",
+    "amount": 1200.00,
+    "reason": "Annual subscription cancelled within 30-day window",
+    "expected": "pre_hook_blocked"
+  },
+  {
+    "id": "TC-05",
+    "description": "validation error — negative amount (-$50)",
+    "customer_id": "CUST-005",
+    "order_id": "ORD-1005",
+    "amount": -50.00,
+    "reason": "Negative amount to test input validation",
+    "expected": "validation_error"
+  },
+  {
+    "id": "TC-06",
+    "description": "validation error — zero amount ($0.00)",
+    "customer_id": "CUST-006",
+    "order_id": "ORD-1006",
+    "amount": 0.00,
+    "reason": "Zero amount to test boundary validation",
+    "expected": "validation_error"
+  },
+  {
+    "id": "TC-07",
+    "description": "transient error — order_id ends in FAIL (simulated payment processor outage)",
+    "customer_id": "CUST-007",
+    "order_id": "ORD-1007-FAIL",
+    "amount": 75.00,
+    "reason": "Defective battery, safety return required",
+    "expected": "transient_error"
+  },
+  {
+    "id": "TC-08",
+    "description": "permission error — REFUND_API_KEY explicitly unset for this call",
+    "customer_id": "CUST-008",
+    "order_id": "ORD-1008",
+    "amount": 200.00,
+    "reason": "Testing missing API key path",
+    "expected": "permission_error",
+    "env_override": {"REFUND_API_KEY": ""}
+  }
+]

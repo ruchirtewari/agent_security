@@ -1,0 +1,19 @@
+{
+  "_comment": "Project-scoped MCP server config. Commit this file; never commit actual secrets.",
+  "_refs": {
+    "server_code":   "mcp_tools/refund_server.py",
+    "hooks_config":  ".claude/settings.json",
+    "pre_hook":      ".claude/hooks/pre_process_refund.py",
+    "post_hook":     ".claude/hooks/post_process_refund.py",
+    "readme":        "README.md"
+  },
+  "mcpServers": {
+    "refund-tools": {
+      "command": ".venv/bin/python3",
+      "args": ["mcp_tools/refund_server.py"],
+      "env": {
+        "REFUND_API_KEY": "${REFUND_API_KEY}"
+      }
+    }
+  }
+}

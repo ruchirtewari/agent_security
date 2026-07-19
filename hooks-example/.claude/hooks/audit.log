@@ -1,0 +1,16 @@
+2026-07-19T03:18:28.763203 PRE  session=fbb146f9-6a6c-471b-8838-268af709098e customer=CUST-001 order=ORD-1001 amount=150.0
+{"ts": "2026-07-19T03:18:28.797309", "hook": "post", "session": "fbb146f9-6a6c-471b-8838-268af709098e", "customer": "CUST-001", "order": "ORD-1001", "amount": 150, "status": "success", "txn": "TXN-ORD-1001-00015000", "retryable": null, "category": null}
+2026-07-19T03:18:39.704246 PRE  session=7a040ebc-f9d4-4b5b-82f7-2f25a306d762 customer=CUST-002 order=ORD-1002 amount=499.99
+{"ts": "2026-07-19T03:18:39.743164", "hook": "post", "session": "7a040ebc-f9d4-4b5b-82f7-2f25a306d762", "customer": "CUST-002", "order": "ORD-1002", "amount": 499.99, "status": "success", "txn": "TXN-ORD-1002-00049999", "retryable": null, "category": null}
+2026-07-19T03:18:52.427039 PRE  session=eb1949a9-969d-41b1-8dee-bb40b01c49b9 customer=CUST-003 order=ORD-1003 amount=500.01
+2026-07-19T03:18:52.427897 PRE  BLOCKED amount=500.01 exceeds threshold=500.0
+2026-07-19T03:19:06.136171 PRE  session=d73b10de-4fc6-44df-91b4-1099156d1394 customer=CUST-004 order=ORD-1004 amount=1200.0
+2026-07-19T03:19:06.136958 PRE  BLOCKED amount=1200.0 exceeds threshold=500.0
+2026-07-19T03:19:26.500575 PRE  session=ea6f5a9e-56ea-4c89-927d-0126f13dd0f4 customer=CUST-005 order=ORD-1005 amount=-50.0
+{"ts": "2026-07-19T03:19:26.536962", "hook": "post", "session": "ea6f5a9e-56ea-4c89-927d-0126f13dd0f4", "customer": "CUST-005", "order": "ORD-1005", "amount": -50, "status": "error", "txn": null, "retryable": false, "category": "validation"}
+2026-07-19T03:19:40.524956 PRE  session=e3b883f9-90c6-460b-a906-8fdc0e3cf523 customer=CUST-006 order=ORD-1006 amount=0.0
+{"ts": "2026-07-19T03:19:40.560669", "hook": "post", "session": "e3b883f9-90c6-460b-a906-8fdc0e3cf523", "customer": "CUST-006", "order": "ORD-1006", "amount": 0, "status": "error", "txn": null, "retryable": false, "category": "validation"}
+2026-07-19T03:19:51.172927 PRE  session=3e56b48b-db96-40b6-9705-8e60c0d7c39a customer=CUST-007 order=ORD-1007-FAIL amount=75.0
+{"ts": "2026-07-19T03:19:51.207601", "hook": "post", "session": "3e56b48b-db96-40b6-9705-8e60c0d7c39a", "customer": "CUST-007", "order": "ORD-1007-FAIL", "amount": 75, "status": "error", "txn": null, "retryable": true, "category": "transient"}
+2026-07-19T03:20:03.354613 PRE  session=8deecc2a-f1f5-4117-b3a1-1dd4f94e294d customer=CUST-008 order=ORD-1008 amount=200.0
+{"ts": "2026-07-19T03:20:03.389743", "hook": "post", "session": "8deecc2a-f1f5-4117-b3a1-1dd4f94e294d", "customer": "CUST-008", "order": "ORD-1008", "amount": 200, "status": "error", "txn": null, "retryable": false, "category": "permission"}
