@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent_security — Harness-level security controls for Claude Code agents</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --border: #d0d7de;
+    --th: #f6f8fa; --code: #f6f8fa; --accent: #0969da;
+    --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --border: #30363d;
+      --th: #161b22; --code: #161b22; --accent: #4493f8;
+      --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem 4rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin: 0 0 .25rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+  h2 { font-size: 1.5rem; margin: 2.5rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.15rem; margin: 1.75rem 0 .5rem; }
+  p.lead { color: var(--muted); font-size: 1.1rem; margin-top: 0; }
+  nav.toc { background: var(--th); border: 1px solid var(--border); border-radius: 6px; padding: .75rem 1.25rem; margin: 1.5rem 0; }
+  nav.toc ol { margin: .25rem 0 .25rem 1.25rem; padding: 0; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; margin: .75rem 0 1.25rem; font-size: .95rem; }
+  th, td { border: 1px solid var(--border); padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: var(--th); font-weight: 600; }
+  tbody tr:nth-child(even) { background: color-mix(in srgb, var(--th) 50%, transparent); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+  code { background: var(--code); padding: .15em .35em; border-radius: 4px; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; }
+  pre code { background: none; padding: 0; }
+  .tag { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1em .55em; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+  .tag.pre  { color: var(--bad);  border-color: var(--bad); }
+  .tag.post { color: var(--warn); border-color: var(--warn); }
+  .tag.cfg  { color: var(--accent); border-color: var(--accent); }
+  .tag.skill{ color: var(--ok);   border-color: var(--ok); }
+  .tag.test { color: var(--muted); border-color: var(--muted); }
+  .note { border-left: 4px solid var(--accent); background: var(--th); padding: .6rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .note.warn { border-left-color: var(--warn); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  ul.tight { margin: .25rem 0 .5rem 1.25rem; padding: 0; }
+  ul.tight li { margin: .15rem 0; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: .75rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>agent_security</h1>
+<p class="lead">Working examples of harness-level security controls for Claude Code agents.</p>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#purpose">Purpose</a></li>
+    <li><a href="#scope">Scope</a></li>
+    <li><a href="#installation">Installation</a></li>
+    <li><a href="#tools">Tools</a>
+      <ol>
+        <li><a href="#hooks-example">hooks-example</a></li>
+        <li><a href="#security-skill">security-skill</a></li>
+        <li><a href="#command-example">command-example</a></li>
+        <li><a href="#parent">Related files in the parent directory</a></li>
+      </ol>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#extending">Extending</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="purpose">1. Purpose</h2>
+
+<p>Claude's own judgment is not a security boundary. A system prompt that says
+"never refund more than $500" or "never run <code>rm -rf</code>" has a non-zero
+failure rate. The examples in this directory move those rules out of the prompt
+and into the harness, where code enforces them deterministically before and
+after every tool call.</p>
+
+<table>
+  <thead>
+    <tr><th style="width:26%">Mechanism</th><th>What it gives you</th><th style="width:22%">Shown in</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hooks</strong><br><code>PreToolUse</code> / <code>PostToolUse</code></td>
+      <td>Block, rewrite, or annotate a tool call with a script that Claude cannot bypass.</td>
+      <td><code>hooks-example/</code><br><code>security-skill/</code></td>
+    </tr>
+    <tr>
+      <td><strong>Permissions</strong><br><code>allow</code> / <code>deny</code> lists</td>
+      <td>Auto-approve safe commands, hard-block dangerous ones, prompt for everything else.</td>
+      <td><code>security-skill/</code></td>
+    </tr>
+    <tr>
+      <td><strong>Skills and commands</strong></td>
+      <td>Package a repeatable security review or workflow as a <code>/slash-command</code>.</td>
+      <td><code>security-skill/</code><br><code>command-example/</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="scope">2. Scope</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:50%">In scope</th><th>Out of scope</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <ul class="tight">
+          <li>Claude Code CLI projects, interactive and <code>-p</code> non-interactive</li>
+          <li>MCP tools you write yourself and want to guard with business rules</li>
+          <li>Prompt-injection defence for file reads, shell output, and web results</li>
+          <li>Destructive-command blocking: <code>rm -rf</code>, <code>curl | bash</code>, force push, raw disk writes</li>
+          <li>Credential-path protection: <code>~/.ssh</code>, <code>~/.aws</code>, <code>~/.gnupg</code>, <code>/etc/shadow</code></li>
+          <li>Structured tool errors that prevent retry loops on fraud or compliance blocks</li>
+        </ul>
+      </td>
+      <td>
+        <ul class="tight">
+          <li>Securing the Claude API itself or the Anthropic platform</li>
+          <li>Network or OS sandboxing beyond what Claude Code provides</li>
+          <li>Authentication and secrets management for your own services. The examples read API keys from environment variables and stop there.</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="installation">3. Installation</h2>
+
+<p>Each example is self-contained inside its own directory and only writes
+inside that directory. Nothing is installed system-wide unless you follow one
+of the optional "make it global" steps, and each of those has a matching row
+in the <a href="#uninstall">Uninstall</a> table.</p>
+
+<h3>Get the code</h3>
+<pre><code>git clone https://github.com/ruchirtewari/agent_security.git
+cd agent_security</code></pre>
+
+<h3>Prerequisites</h3>
+<table>
+  <thead><tr><th style="width:26%">Requirement</th><th style="width:40%">Install</th><th>Needed by</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Code CLI</td><td><code>npm install -g @anthropic-ai/claude-code</code></td><td>all three examples</td></tr>
+    <tr><td>Python 3.9 or later</td><td>system package manager</td><td><code>hooks-example</code>, <code>security-skill</code></td></tr>
+    <tr><td><code>mcp</code> package</td><td><code>pip install -r hooks-example/requirements.txt</code> inside a venv</td><td><code>hooks-example</code> only</td></tr>
+  </tbody>
+</table>
+
+<h3>Install steps per tool</h3>
+<table>
+  <thead><tr><th style="width:18%">Tool</th><th style="width:26%">Scope</th><th>Steps</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>hooks-example</strong></td>
+      <td>Project-local. Active only when Claude Code is launched from inside <code>hooks-example/</code>.</td>
+      <td>
+<pre><code>cd hooks-example
+python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+export REFUND_API_KEY="test-key-demo-123"   # any value works for the demo</code></pre>
+        The venv must live at <code>hooks-example/.venv</code> because <code>.mcp.json</code> starts the server with <code>.venv/bin/python3</code>.
+        The bundled <code>settings.local.json</code> pre-approves the project MCP server.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>security-skill</strong><br><small>skill</small></td>
+      <td>Project-local by default. Optional global copy.</td>
+      <td>
+        No install step for use inside <code>security-skill/</code>. To make <code>/security</code> available everywhere:
+<pre><code>mkdir -p ~/.claude/skills
+cp -r security-skill/.claude/skills/security ~/.claude/skills/security</code></pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>security-skill</strong><br><small>hardening hooks</small></td>
+      <td>Per project of your own. Opt-in; not wired by default.</td>
+      <td>
+        Copy the scripts and back up the existing settings so uninstall is a one-line restore:
+<pre><code>cd /path/to/your-project
+mkdir -p .claude/hooks
+cp /path/to/agent_security/security-skill/.claude/hooks/{restrict-bash,sanitize-read,validate-output}.py .claude/hooks/
+cp .claude/settings.json .claude/settings.json.bak 2&gt;/dev/null || true</code></pre>
+        Merge this into <code>.claude/settings.json</code>, keeping any keys already there:
+<pre><code>{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 .claude/hooks/restrict-bash.py" }] },
+      { "matcher": "Read", "hooks": [{ "type": "command", "command": "python3 .claude/hooks/sanitize-read.py" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Bash|WebSearch|WebFetch", "hooks": [{ "type": "command", "command": "python3 .claude/hooks/validate-output.py" }] }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm *)", "Bash(sudo *)", "Bash(curl * | *)", "Bash(wget * | *)",
+      "Bash(chmod 777 *)", "Bash(dd *)", "Bash(mkfs*)", "Bash(git push --force *)"
+    ]
+  }
+}</code></pre>
+        Verify a hook outside Claude Code before relying on it:
+<pre><code>CLAUDE_TOOL_INPUT='{"command":"rm -rf /"}' python3 .claude/hooks/restrict-bash.py; echo "exit=$?"
+# [security hook] BLOCKED: destructive rm -rf on root/home/glob
+# exit=1</code></pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>security-skill</strong><br><small>nightly advisor</small></td>
+      <td>User crontab. Optional.</td>
+      <td>
+        Edit the <code>REPO</code> path at the top of <code>nightly-suggestions.sh</code>, then:
+<pre><code>crontab -e
+# 0 8 * * * /absolute/path/to/.claude/hooks/nightly-suggestions.sh</code></pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>command-example</strong></td>
+      <td>Project-local by default. Optional global copy.</td>
+      <td>
+        No install step for use inside <code>command-example/</code>. To make a command global:
+<pre><code>mkdir -p ~/.claude/commands
+cp command-example/.claude/commands/status.md ~/.claude/commands/</code></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note warn">
+<strong>Roll out hooks gradually.</strong> Start with the deny list and <code>restrict-bash.py</code> only, then add <code>sanitize-read.py</code> once you have confirmed it does not block files you need. A hook that blocks <code>Read</code> on a false positive can stall a session.
+</div>
+
+<h3 id="uninstall">Uninstall</h3>
+
+<p>Project-local installs are removed by deleting the directory. The global
+steps are reversed as follows. Each command only touches files this page told
+you to create.</p>
+
+<table>
+  <thead><tr><th style="width:34%">What you installed</th><th>How to remove it</th></tr></thead>
+  <tbody>
+    <tr><td>hooks-example venv</td><td><code>rm -rf hooks-example/.venv</code></td></tr>
+    <tr><td>hooks-example runtime output</td><td><code>rm -f hooks-example/.claude/hooks/audit.log hooks-example/traces/*.jsonl</code></td></tr>
+    <tr><td><code>REFUND_API_KEY</code> in your shell</td><td><code>unset REFUND_API_KEY</code>, and remove the line from your shell profile if you added it</td></tr>
+    <tr><td>Global <code>/security</code> skill</td><td><code>rm -rf ~/.claude/skills/security</code></td></tr>
+    <tr><td>Hooks copied into your project</td><td><code>rm .claude/hooks/{restrict-bash,sanitize-read,validate-output}.py</code></td></tr>
+    <tr><td>Hook and deny config in your project</td><td><code>mv .claude/settings.json.bak .claude/settings.json</code>, or delete the <code>hooks</code> and <code>permissions.deny</code> entries you added</td></tr>
+    <tr><td>Nightly advisor cron job</td><td><code>crontab -e</code> and delete the <code>nightly-suggestions.sh</code> line; <code>rm .claude/nightly-report.md</code></td></tr>
+    <tr><td>Global commands</td><td><code>rm ~/.claude/commands/status.md</code> and any others you copied</td></tr>
+    <tr><td>Claude Code CLI</td><td><code>npm uninstall -g @anthropic-ai/claude-code</code></td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+Hooks and permission rules are read from <code>settings.json</code> at startup, so restart Claude Code after removing them. Confirm with <code>/hooks</code> that the list is empty.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="tools">4. Tools</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:22%">Directory</th><th>What it is</th><th style="width:30%">Mechanisms used</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="#hooks-example"><code>hooks-example/</code></a></td>
+      <td>Runnable <code>process_refund</code> MCP tool wrapped in a Pre and a Post hook, with an 8-case batch test harness.</td>
+      <td><span class="tag pre">PreToolUse</span> <span class="tag post">PostToolUse</span> <span class="tag cfg">MCP</span> <span class="tag test">tests</span></td>
+    </tr>
+    <tr>
+      <td><a href="#security-skill"><code>security-skill/</code></a></td>
+      <td>Interactive <code>/security</code> assessment skill plus three reusable hardening hooks and a nightly advisor.</td>
+      <td><span class="tag skill">skill</span> <span class="tag pre">PreToolUse</span> <span class="tag post">PostToolUse</span> <span class="tag cfg">permissions</span></td>
+    </tr>
+    <tr>
+      <td><a href="#command-example"><code>command-example/</code></a></td>
+      <td>Four custom slash commands showing zero, one, and two-argument patterns and namespacing.</td>
+      <td><span class="tag skill">commands</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ------------------------------------------------------------ -->
+<h3 id="hooks-example">4.1 <code>hooks-example/</code> — MCP tool with Pre/PostToolUse hooks</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:34%">File</th><th style="width:14%">Stage</th><th>Role</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>mcp_tools/refund_server.py</code></td><td><span class="tag cfg">MCP</span></td>
+        <td>FastMCP server exposing <code>process_refund(customer_id, order_id, amount, reason)</code>. Returns structured errors with <code>errorCategory</code> and <code>isRetryable</code>.</td></tr>
+    <tr><td><code>.mcp.json</code></td><td><span class="tag cfg">config</span></td>
+        <td>Registers the server with Claude Code under the name <code>refund-tools</code>. Injects <code>REFUND_API_KEY</code> from the environment.</td></tr>
+    <tr><td><code>.claude/settings.json</code></td><td><span class="tag cfg">config</span></td>
+        <td>Wires both hooks to the matcher <code>mcp__refund-tools__process_refund</code>.</td></tr>
+    <tr><td><code>.claude/hooks/pre_process_refund.py</code></td><td><span class="tag pre">PreToolUse</span></td>
+        <td>Blocks refunds over <code>$500</code> with exit 2 so Claude sees a clear error and does not retry. Normalises IDs on the way through.</td></tr>
+    <tr><td><code>.claude/hooks/post_process_refund.py</code></td><td><span class="tag post">PostToolUse</span></td>
+        <td>Appends to <code>audit.log</code> and enriches the result with <code>isRetryable</code>, <code>errorCategory</code>, <code>agentHint</code>.</td></tr>
+    <tr><td><code>run-refunds.sh</code></td><td><span class="tag test">tests</span></td>
+        <td>End-to-end batch test. Generates 8 cases, runs each through <code>claude -p</code>, scores the audit log and traces.</td></tr>
+    <tr><td><code>test-refunds.json</code>, <code>traces/TC-*.jsonl</code></td><td><span class="tag test">tests</span></td>
+        <td>Generated test data and per-case stream-json traces.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Test cases exercised by <code>run-refunds.sh</code></strong></p>
+<table>
+  <thead><tr><th style="width:10%">ID</th><th style="width:12%">Amount</th><th style="width:22%">Expected</th><th>What it proves</th></tr></thead>
+  <tbody>
+    <tr><td>TC-01</td><td>$150.00</td><td>success</td><td>Standard refund below threshold passes both hooks</td></tr>
+    <tr><td>TC-02</td><td>$499.99</td><td>success</td><td>Boundary one cent under the limit is allowed</td></tr>
+    <tr><td>TC-03</td><td>$500.01</td><td>pre_hook_blocked</td><td>Boundary one cent over the limit is blocked</td></tr>
+    <tr><td>TC-04</td><td>$1200.00</td><td>pre_hook_blocked</td><td>Large amount is blocked with a manager-approval message</td></tr>
+    <tr><td>TC-05</td><td>-$50.00</td><td>validation_error</td><td>Negative amount returns a structured, non-retryable error</td></tr>
+    <tr><td>TC-06</td><td>$0.00</td><td>validation_error</td><td>Zero amount returns a structured, non-retryable error</td></tr>
+    <tr><td>TC-07</td><td>$75.00</td><td>transient_error</td><td>Order ID ending in <code>FAIL</code> simulates an outage and is marked retryable</td></tr>
+    <tr><td>TC-08</td><td>$200.00</td><td>permission_error</td><td>Unset <code>REFUND_API_KEY</code> surfaces as a permission error, not a silent success</td></tr>
+  </tbody>
+</table>
+
+<p>See <code>hooks-example/README.md</code> for the full flow diagram, exit-code table, and the anti-patterns the design avoids.</p>
+
+<!-- ------------------------------------------------------------ -->
+<h3 id="security-skill">4.2 <code>security-skill/</code> — Security assessment skill plus hardening hooks</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:34%">File</th><th style="width:14%">Stage</th><th>Role</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.claude/skills/security/SKILL.md</code></td><td><span class="tag skill">skill</span></td>
+        <td>The <code>/security</code> skill. Asks 12 questions across three domains, scores gaps, then offers to implement fixes.</td></tr>
+    <tr><td><code>.claude/hooks/restrict-bash.py</code></td><td><span class="tag pre">PreToolUse</span><br>on <code>Bash</code></td>
+        <td>Regex denylist: <code>rm -rf /</code>, <code>sudo rm</code>, <code>curl|sh</code>, fork bombs, <code>dd</code> to raw disks, <code>mkfs</code>, force push to main, credential paths. Exit 1 blocks.</td></tr>
+    <tr><td><code>.claude/hooks/sanitize-read.py</code></td><td><span class="tag pre">PreToolUse</span><br>on <code>Read</code></td>
+        <td>Scans the target file for injection phrases such as "ignore previous instructions" or <code>&lt;system&gt;</code> and blocks the read.</td></tr>
+    <tr><td><code>.claude/hooks/validate-output.py</code></td><td><span class="tag post">PostToolUse</span><br>on <code>Bash</code>, <code>WebSearch</code>, <code>WebFetch</code></td>
+        <td>Cannot block a result, so it prepends an explicit "treat as UNTRUSTED" warning when injection patterns appear. Two-tier matching limits false positives.</td></tr>
+    <tr><td><code>.claude/hooks/nightly-suggestions.sh</code></td><td><span class="tag cfg">cron</span></td>
+        <td>Feeds recent git log, status, hooks, and skills to <code>claude -p</code> and writes a prioritised next-steps report.</td></tr>
+    <tr><td><code>Security.md</code></td><td><span class="tag cfg">docs</span></td>
+        <td>Architecture overview of the control stack, permissions config, remaining gaps, and how to extend each layer.</td></tr>
+    <tr><td><code>security-skill.md</code></td><td><span class="tag cfg">docs</span></td>
+        <td>Copy of <code>SKILL.md</code> kept at the top level for reading outside Claude Code.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Assessment domains covered by <code>/security</code></strong></p>
+<table>
+  <thead><tr><th style="width:26%">Domain</th><th>Questions asked</th><th style="width:30%">Fixes offered</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>A. Agentic orchestration</strong></td>
+      <td>Minimum footprint, output validation, injection defence, action gates for irreversible operations.</td>
+      <td>Code patterns: sanitiser, schema check, destructive-action gate.</td>
+    </tr>
+    <tr>
+      <td><strong>B. Tool and MCP design</strong></td>
+      <td>Path privilege, input parameterisation, error strategy, single responsibility.</td>
+      <td>Code patterns: path-traversal guard, parameterised SQL and subprocess, exception vs. structured error split.</td>
+    </tr>
+    <tr>
+      <td><strong>C. Claude Code config</strong></td>
+      <td>PreToolUse hooks, allow and deny lists, CI <code>-p</code> mode, <code>CLAUDE.md</code> security section.</td>
+      <td>Writes hooks and permission lists into <code>.claude/settings.json</code>, appends a security section to <code>CLAUDE.md</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note warn">
+<strong>Not wired by default.</strong> The three hook scripts in <code>security-skill/.claude/hooks/</code> are not referenced by any <code>settings.json</code> in that directory. They do nothing until you add the hook configuration shown in <a href="#installation">Install and use</a>.
+</div>
+
+<!-- ------------------------------------------------------------ -->
+<h3 id="command-example">4.3 <code>command-example/</code> — Custom slash commands</h3>
+
+<table>
+  <thead><tr><th style="width:26%">Invocation</th><th style="width:36%">File</th><th style="width:12%">Arguments</th><th>Does</th></tr></thead>
+  <tbody>
+    <tr><td><code>/status</code></td><td><code>.claude/commands/status.md</code></td><td>none</td><td>Runs <code>git status</code>, <code>git log</code>, <code>git stash list</code> and summarises</td></tr>
+    <tr><td><code>/claudehelp &lt;topic&gt;</code></td><td><code>.claude/commands/claudehelp.md</code></td><td>one</td><td>Focused Claude Code docs on a topic. No argument lists the topics.</td></tr>
+    <tr><td><code>/explain &lt;concept&gt;</code></td><td><code>.claude/commands/explain.md</code></td><td>one</td><td>Structured explanation of a concept for an engineer new to it</td></tr>
+    <tr><td><code>/compare:files &lt;a&gt; &lt;b&gt;</code></td><td><code>.claude/commands/compare/files.md</code></td><td>two</td><td>Diffs two files and groups changes as added, removed, changed, cosmetic</td></tr>
+  </tbody>
+</table>
+
+<p>The <code>compare/</code> directory becomes the <code>/compare:</code> namespace. Not security tooling in itself, but the same packaging is how you would ship a <code>/security:audit</code> or <code>/deploy:check</code> command to a team. See <code>command-example/README.md</code> for how <code>$ARGUMENTS</code> substitution works.</p>
+
+<!-- ------------------------------------------------------------ -->
+<h3 id="parent">4.4 Related files in the parent directory</h3>
+
+<table>
+  <thead><tr><th style="width:30%">Parent file</th><th>Relationship to this directory</th></tr></thead>
+  <tbody>
+    <tr><td><code>../Security.md</code></td><td>Same content as <code>security-skill/Security.md</code>. Only the title line differs.</td></tr>
+    <tr><td><code>../security-skill.md</code></td><td>Identical to <code>security-skill/.claude/skills/security/SKILL.md</code>.</td></tr>
+  </tbody>
+</table>
+<p>Treat the copies inside <code>security-skill/</code> as canonical.</p>
+
+<!-- ============================================================ -->
+<h2 id="usage">5. Usage</h2>
+
+<p>All three examples assume you have completed the matching step in <a href="#installation">Installation</a>.</p>
+
+<table>
+  <thead><tr><th style="width:18%">Tool</th><th style="width:22%">Mode</th><th>Commands</th><th style="width:26%">What to expect</th></tr></thead>
+  <tbody>
+    <tr>
+      <td rowspan="2"><strong>hooks-example</strong></td>
+      <td>Interactive</td>
+      <td><pre><code>cd hooks-example &amp;&amp; source .venv/bin/activate
+claude
+/hooks
+Process a refund of $150 for customer CUST-456, order ORD-789. Reason: damaged.
+Process a refund of $750 for customer CUST-123, order ORD-321.</code></pre></td>
+      <td><code>/hooks</code> lists both hooks under <code>mcp__refund-tools__process_refund</code>. The $150 refund succeeds and appears in <code>audit.log</code>. The $750 refund is blocked with a manager-approval message.</td>
+    </tr>
+    <tr>
+      <td>Batch test</td>
+      <td><pre><code>bash run-refunds.sh</code></pre></td>
+      <td>Per-case PASS/FAIL table. Traces in <code>traces/</code>, audit trail in <code>.claude/hooks/audit.log</code>.</td>
+    </tr>
+    <tr>
+      <td rowspan="3"><strong>security-skill</strong></td>
+      <td>Assessment</td>
+      <td><pre><code>cd security-skill
+claude
+/security
+/security --fix</code></pre></td>
+      <td>Twelve questions, a gap table, then a menu of fixes to apply. The <code>--fix</code> flag skips the questions.</td>
+    </tr>
+    <tr>
+      <td>Hooks in your project</td>
+      <td>Work normally in Claude Code.</td>
+      <td>Any blocked command surfaces as a tool error prefixed <code>[security hook] BLOCKED</code>. Injected content in output is prefixed with an UNTRUSTED warning.</td>
+    </tr>
+    <tr>
+      <td>Nightly advisor, manual run</td>
+      <td><pre><code>bash .claude/hooks/nightly-suggestions.sh</code></pre></td>
+      <td>Writes <code>.claude/nightly-report.md</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>command-example</strong></td>
+      <td>Interactive</td>
+      <td><pre><code>cd command-example
+claude
+/status
+/claudehelp hooks
+/compare:files README.md ../hooks-example/README.md</code></pre></td>
+      <td>Each command expands its <code>.md</code> file with <code>$ARGUMENTS</code> substituted and runs it as a prompt.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Where things live</strong></p>
+<table>
+  <thead><tr><th style="width:26%">Location</th><th style="width:34%">Scope</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>.claude/</code> in a project</td><td>That project only</td><td><code>settings.json</code>, <code>hooks/</code>, <code>skills/</code>, <code>commands/</code></td></tr>
+    <tr><td><code>~/.claude/</code></td><td>Every project for this user</td><td><code>settings.json</code>, <code>skills/</code>, <code>commands/</code></td></tr>
+    <tr><td><code>.mcp.json</code> in a project</td><td>That project only</td><td>MCP server registrations</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="extending">6. Extending</h2>
+
+<table>
+  <thead><tr><th style="width:30%">Goal</th><th>Where to change</th></tr></thead>
+  <tbody>
+    <tr><td>Block a new dangerous command</td>
+        <td>Append a <code>(regex, reason)</code> tuple to <code>DENYLIST</code> in <code>restrict-bash.py</code>.</td></tr>
+    <tr><td>Catch a new injection phrase</td>
+        <td>Add the regex to <code>INJECTION_PATTERNS</code> in both <code>sanitize-read.py</code> and <code>validate-output.py</code>.</td></tr>
+    <tr><td>Guard a new MCP tool</td>
+        <td>Follow the six-step recipe under "Adapting to a new tool" in <code>hooks-example/README.md</code>. The matcher format is <code>mcp__&lt;server&gt;__&lt;tool&gt;</code>.</td></tr>
+    <tr><td>Auto-approve a safe command</td>
+        <td>Append <code>"Bash(your-command *)"</code> to <code>permissions.allow</code> in <code>.claude/settings.json</code>.</td></tr>
+    <tr><td>Reduce permission prompts</td>
+        <td>Run <code>/fewer-permission-prompts</code> to generate an allowlist from your transcripts. Hooks and deny lists keep enforcing even under <code>--dangerously-skip-permissions</code>.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  Companion to <code>README.md</code> in the same directory. Both describe the same material; this page is organised around tables.
+</footer>
+
+</main>
+</body>
+</html>
